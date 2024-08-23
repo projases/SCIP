@@ -79,9 +79,6 @@
       (* (term a)
          (product term (next a) next b))))
 
-(define (compose f g)
-  (λ (x) (f (g x))))
-
 (define (approx-pi n)
   (define (inc-2 x) (+ x 2))
   (* 4.0 (product (lambda (x) (/ (* x (+ x 2)) (* (+ x 1) (+ x 1))))
@@ -209,4 +206,248 @@
        (λ (x) (+ x 4))
        b))
 
+(define radius 4)
+;; (let ((radius 5)
+;;       (area (* pi (* radius radius))))
+;;   (list radius area))
+;;;;;Ex. 1.34;;;;;;
+(define (f g) (g 2))
+;; (f f) takes f as an argument which then gives f 2,
+;; and tries to apply 2 as a function which is not procedure.
 ;;;;;;;;;;;;;;;
+(define (average a b)
+  (/ (+ a b) 2))
+
+(define (close-enough? x y)
+  (< (abs (- x y )) 0.001))
+
+(define (search f neg-point pos-point)
+  (let ((midpoint (average neg-point pos-point)))
+    (if (close-enough? neg-point pos-point)
+        midpoint
+        (let ((test-value (f midpoint)))
+          (cond ((positive? test-value)
+                 (search f neg-point midpoint))
+                ((negative? test-value)
+                 (search f midpoint pos-point))
+                (else midpoint))))))
+
+(define (half-interval-method f a b)
+  (let ((a-value (f a))
+        (b-value (f b)))
+    (cond ((and (negative? a-value) (positive? b-value))
+           (search f a b))
+          ((and (negative? b-value) (positive? a-value))
+           (search f b a))
+          (else
+           (error "Values are not of opposite sign" a b)))))
+
+;; (half-interval-method (λ (x) (- (* x x x) (* 2 x) 3))
+;;                       1.0
+;;                       2.0)
+(define tolerance 0.00001)
+(define (fixed-point f first-guess)
+  (define (close-enough? v1 v2)
+    (< (abs (- v1 v2))
+       tolerance))
+  (define (try guess)
+    (displayln (format "guess: ~a" guess))
+    (let ((next (f guess)))
+      (if (close-enough? guess next)
+          next
+          (try next))))
+  (try first-guess))
+
+;; (fixed-point cos 1.0)
+
+(define (sqrt x)
+  (fixed-point (λ (y) (average y (/ x y)))
+               1.0))
+;;;;;Ex. 1.35 golden ratio;;;;;
+
+(define (golden-ratio)
+  (fixed-point (λ (y) (+ 1 (/ 1 y)))
+               1.0))
+;;;;;Ex. 1.36;;;;;;;;;
+(define (x-to-the-x y)
+  (fixed-point (λ (x) (/ (log y) (log x)))
+               2.0))
+;;;;;;;;;Ex. 1.37;;;;;
+(define (cont-frac n d k)
+  (if (= k 0)
+      0
+      (/ (n k) (+ (d k) (cont-frac n d (- k 1))))))
+
+(define (cont-frac-iter n d k)
+  (define (iter k result)
+    (displayln (format "N: ~a D: ~a result: ~a" (n k) (d k) result))
+    (if (= k 1)
+      result
+      (iter (- k 1) (/ (n k) (+ (d k) result)))))
+  (iter k 0))
+
+(define (cont-frac-iterck n d k) ;;; connor hoekstra solution
+  (define (cf-iter i)
+    (if (= i k)
+        (/ (n i) (d i))
+        (/ (n i) (d i) (cf-iter (+ i 1)))))
+  (cf-iter 1))
+
+;;;;;;Ex. 1.38;;;;;
+
+(define (euler-e k)
+  (let ((N (λ (x) 1.0))
+        (D (λ (x)
+             (if (even? x)
+                 (* 2 (quotient x 2))
+                 1))))
+  (+ 2 (cont-frac-iter N D k))))
+;;;;;;Ex. 1.39 ;;;;;;;;; doesn't work (not even the solutions from wiki)
+(define (tan-cf x k)
+  (let ((N (λ (i) (if (= i 1) x (-(* x x )))))
+        (D (λ (i) i) ))
+    (cont-frac-iterck N D k)))
+
+;;;;;;
+(define (tan-cfa x k) ;; wiki solution
+   (let ((a  (* x x)))
+     (cont-frac-iterck (lambda (i) (if (= i 1) x a))
+              (lambda (i) (+ (* i 2) 1))
+              k)))
+
+ (define (tan-cfw x k) ;;;; wiki solution
+   (define (tan-cf-rec i)
+     (let ((di (+ i (- i 1)))
+           (x^2 (* x x)))
+     (if (= i k)
+         di
+         (- di (/ x^2 (tan-cf-rec (+ i 1)))))))
+   (/ x (tan-cf-rec 1)))
+
+;;;;;;1.3.4 Procedures as returned values;;;;;
+(define (average-damp f)
+  (λ (x) (average x (f x))))
+
+(define (sqrt-proc x)
+  (fixed-point (average-damp (λ (y) (/ x y)))
+               1.0))
+
+(define (cube-root x)
+  (fixed-point (average-damp (λ (y) (/ x (square y))))
+               1.0))
+
+(define (deriv g)
+  (λ (x) (/ (- (g (+ x dx)) (g x)) dx)))
+
+(define dx 0.00001)
+
+(define (newton-transform g)
+  (λ (x) (- x (/ (g x) ((deriv g) x)))))
+
+(define (newtons-method g guess)
+  (fixed-point (newton-transform g) guess))
+
+(define (newtons-sqrt x)
+  (newtons-method
+  (λ (y) (- (square y) x)) 1.0))
+
+(define (fixed-point-of-transform g transform guess)
+  (fixed-point (transform g) guess))
+
+(define (general-sqrt x)
+  (fixed-point-of-transform
+   (λ (y) (/ x y)) average-damp 1.0))
+
+(define (general-sqrt-2 x)
+  (fixed-point-of-transform
+   (λ (y) (- (square y) x)) newton-transform 1.0))
+;;;;; Ex. 1.40;;;;;
+(define (cubic a b c)
+  (λ (x) (+ (* x x x)
+            (* a (* x x))
+            (* b x)
+            c)))
+(define (cubic-roots a b c)
+  (newtons-method (cubic a b c) 1.0))
+
+;;;;;;;;Ex. 1.41;;;;;
+(define (double f)
+  (λ (x) (f(f x))))
+
+; (((double (double double)) inc) 5)
+; (2x)
+; 2(2 x) = (4x)
+; 2(4x 2x) = 16x
+; 16 inc 5 = 21;
+
+;;;;;Ex. 1.42;;;;
+(define (compose f g)
+  (λ (x) (f (g x))))
+
+;;;;;Ex. 1.43;;;;;
+(define (repeated f n)
+    (if (= n 0 )
+        (λ (x) x)
+        (compose f (repeated f (- n 1)))))
+
+(define (repeat f n)
+  (λ (x)
+    (define (iter counter acc)
+      (if (= counter 0)
+          acc
+          (iter (- counter 1) (f acc))))
+  (iter n x)))
+;;;;;;;Ex. 1.44;;;;;;
+(define (smooth f)
+  (λ (x) (/ (+ (f (+ x dx))
+               (f x)
+               (f (- x dx)))
+            3)))
+ (define (n-fold-smooth f n)
+   ((repeated smooth n) f))
+;;;;; Ex. 1.45;;;;;;;;
+(define (general-cbrt x)
+  (fixed-point-of-transform
+   (λ (y) (/ x (square y))) average-damp 1.0))
+
+(define (general-root degree n)
+  (fixed-point-of-transform
+   (λ (y) (/ n (expt y (- degree 1))))
+   (repeat average-damp degree) 1.0))
+;;;;;
+(define (iterative-improve enough? improve-guess)
+  (λ (first-guess)
+    (define (iter guess)
+      (displayln (format "guess: ~a" guess))
+      (if (enough? guess)
+        guess
+        (iter (improve-guess guess))))
+    (iter first-guess)))
+
+
+(define (square-root x)
+  ((iterative-improve
+    (λ (guess)
+      (< (abs (- (square guess) x))
+         0.001))
+    (λ (guess)
+      (average guess (/ x guess))))
+   1.0))
+
+(define (fixed-enough? v1 v2)
+    (< (abs (- v1 v2))
+       tolerance))
+
+(define (new-fixed-point f first-guess)
+  ((iterative-improve
+    (λ (x) (fixed-enough? x (f x)))
+    f)
+   first-guess))
+
+(define (new-sqrt x)
+  (new-fixed-point (λ (y) (average y (/ x y))) 1.0))
+
+;; (define (new-fixed-point f)
+;;   ((iterative-improve (λ (guess) (< (abs (- (f guess) guess)) tolerance))
+;;                       f) 1.0))
+
