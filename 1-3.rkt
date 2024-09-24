@@ -450,4 +450,3 @@
 ;; (define (new-fixed-point f)
 ;;   ((iterative-improve (λ (guess) (< (abs (- (f guess) guess)) tolerance))
 ;;                       f) 1.0))
-
