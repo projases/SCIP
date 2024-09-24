@@ -241,5 +241,5 @@
      one (add-interval (div-interval one r1)
                        (div-interval one r2)))))
 
-(define A (make-interval 1 1.1))
+Info(define A (make-interval 1 1.1))
 (define B (make-interval 2 2.1))
